@@ -5,6 +5,8 @@ import com.slslayer.moviecatalogservice.models.CatalogItem;
 import com.slslayer.moviecatalogservice.models.Movie;
 import com.slslayer.moviecatalogservice.models.Rating;
 import com.slslayer.moviecatalogservice.models.UserRatings;
+import com.slslayer.moviecatalogservice.services.DataRatingsService;
+import com.slslayer.moviecatalogservice.services.MovieInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,22 +24,20 @@ import java.util.stream.Collectors;
 public class MovieCatalogService {
 
     @Autowired
-    private RestTemplate restTemplate;
+    private MovieInfoService movieInfoService;
+
+    @Autowired
+    private DataRatingsService dataRatingsService;
 
     @GetMapping("/{userId}")
-    @HystrixCommand(fallbackMethod = "getFallbackCatalog")
     public List<CatalogItem> getCatalog(@PathVariable("userId") String userId){
 
-        UserRatings userRatings = restTemplate.getForObject("http://data-ratings-service/ratingsData/users/" + userId, UserRatings.class);
+        UserRatings userRatings = dataRatingsService.getUserRatings(userId);
 
         return userRatings.getUserRatings().stream().map(rating ->{
-            Movie movie = restTemplate.getForObject("http://movie-info-service/movies/" + rating.getMovieId(), Movie.class);
+            Movie movie = movieInfoService.getMovie(rating);
             return new CatalogItem(movie.getName(), "Test Description", rating.getRating());
         }).collect(Collectors.toList());
     }
 
-
-    public List<CatalogItem> getFallbackCatalog(@PathVariable("userId") String userId){
-        return Arrays.asList(new CatalogItem("abc","test description from fallback method", 3));
-    }
 }
